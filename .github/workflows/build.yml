@@ -1,0 +1,34 @@
+name: Build APK
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+      - name: Build signed release APK
+        run: gradle assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClaudeSandbox6X-apk
+          path: app/build/outputs/apk/release/app-release.apk
+      # Uygulama içi güncelleme denetimi bu sürümü görür (tag: v1.<derleme no>)
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.${{ github.run_number }}
+          name: Claude Sandbox 6X v1.${{ github.run_number }}
+          files: app/build/outputs/apk/release/app-release.apk

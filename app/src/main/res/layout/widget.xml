@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/widget_bg">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Claude Sandbox 6X"
+        android:textColor="#D97757"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:paddingBottom="4dp" />
+
+    <TextView android:id="@+id/row1" style="@style/WidgetRow" />
+    <TextView android:id="@+id/row2" style="@style/WidgetRow" />
+    <TextView android:id="@+id/row3" style="@style/WidgetRow" />
+    <TextView android:id="@+id/row4" style="@style/WidgetRow" />
+    <TextView android:id="@+id/row5" style="@style/WidgetRow" />
+    <TextView android:id="@+id/row6" style="@style/WidgetRow" />
+    <TextView android:id="@+id/row7" style="@style/WidgetRow" />
+    <TextView android:id="@+id/row8" style="@style/WidgetRow" />
+</LinearLayout>

@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Claude Sandbox 6X</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{bg:'#0C0C0B',card:'#1C1C19',line:'#2D2D28',acc:'#D97757',mute:'#9C9A92'}}}}</script>
+<style>
+html,body{height:100%;margin:0;background:#0C0C0B;color:#F5F5F2;font-family:system-ui,-apple-system,Roboto,sans-serif;-webkit-tap-highlight-color:transparent;overflow:hidden}
+#app{height:100dvh;display:flex;flex-direction:column}
+.tap:active{transform:scale(.96)}
+.nos::-webkit-scrollbar{display:none}.nos{scrollbar-width:none}
+@keyframes slide{0%{transform:translateY(-130%);opacity:0}100%{transform:none;opacity:1}}
+.banner{animation:slide .35s cubic-bezier(.22,1,.36,1)}
+@keyframes glow{0%{box-shadow:0 0 0 0 rgba(16,185,129,.8)}60%{box-shadow:0 0 24px 4px rgba(16,185,129,.4)}100%{box-shadow:none}}
+.unlocked{animation:glow 2s ease-out}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ÜST BAR -->
+  <div class="px-3.5 pt-2.5 pb-2 border-b border-line shrink-0 bg-[#121210]">
+    <div class="flex items-center justify-between text-[10.5px] font-mono text-mute mb-2">
+      <span id="clock" class="text-white font-bold">--:--</span>
+      <span id="stat" class="text-emerald-400 font-semibold"></span>
+    </div>
+    <div class="flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <h1 class="text-sm font-extrabold text-white truncate">Claude Sandbox 6X</h1>
+        <p id="iso" class="text-[10px] text-mute truncate">İzole WebView profilleri</p>
+      </div>
+      <div class="flex gap-1.5 shrink-0">
+        <button onclick="openNotes()" class="tap relative px-3 py-2 rounded-xl bg-card border border-line text-[13px]">🔔<span id="bell-badge" class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-acc text-white text-[9px] font-bold flex items-center justify-center">0</span></button>
+        <button onclick="openModal('menu-modal')" class="tap px-3 py-2 rounded-xl bg-card border border-line text-sky-300 text-[11px] font-bold">☰ Menü</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANA PANEL -->
+  <div id="dash" class="flex-1 flex flex-col overflow-hidden">
+    <div id="update-bar" class="hidden mx-3.5 mt-2 p-2 rounded-xl bg-emerald-500/15 border border-emerald-400/40 flex items-center justify-between gap-2 shrink-0">
+      <span id="update-text" class="text-[11px] font-bold text-emerald-300"></span>
+      <button onclick="updInstall()" class="tap px-3 py-1 rounded-lg bg-emerald-500 text-black text-[10.5px] font-extrabold">Güncelle</button>
+    </div>
+    <div class="px-3.5 pt-2.5 pb-2 flex gap-2 shrink-0">
+      <button id="router" onclick="launchBest()" class="tap flex-1 min-w-0 text-left rounded-2xl border border-acc/50 bg-acc/10 p-2.5">
+        <div class="text-[9.5px] font-bold uppercase tracking-wider text-acc">Önerilen Hesap</div>
+        <div id="router-main" class="text-xs font-extrabold text-white truncate">-</div>
+        <div id="router-sub" class="text-[10px] text-emerald-300 truncate">-</div>
+      </button>
+      <button onclick="openParser()" class="tap px-3 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[10px] font-extrabold text-center leading-tight">Metin<br>Algıla</button>
+    </div>
+
+    <div id="chips" class="px-3.5 pb-2 flex gap-1.5 overflow-x-auto nos shrink-0"></div>
+    <main class="flex-1 overflow-y-auto nos px-3.5 pb-3">
+      <div id="grid" class="grid grid-cols-2 gap-2.5"></div>
+    </main>
+
+    <div class="border-t border-line px-3 py-2 shrink-0 bg-[#121210] flex items-center gap-2">
+      <span class="text-[9px] font-mono uppercase text-mute shrink-0">Son</span>
+      <div id="dock" class="flex gap-1.5 overflow-x-auto nos"></div>
+    </div>
+  </div>
+
+  <!-- TAM EKRAN: yalnızca üst kısım HTML, altı yerel WebView -->
+  <div id="fs" class="hidden fixed inset-0 z-40 flex flex-col pointer-events-none">
+    <div id="fs-head" class="pointer-events-auto bg-bg border-b border-line shrink-0">
+      <div class="px-3 py-2 flex items-center gap-1.5">
+        <button onclick="closeFS()" class="tap px-2.5 py-1.5 rounded-xl bg-card border border-line text-white text-[11px] font-bold shrink-0">‹ Geri</button>
+        <div id="fs-switch" class="flex-1 flex gap-1 overflow-x-auto nos"></div>
+        <button onclick="openModal('fsmenu-modal')" class="tap px-2 py-1.5 rounded-xl bg-card border border-line text-white text-[11px] font-bold shrink-0">⋯</button>
+        <button id="fs-count" onclick="bump()" class="tap px-2 py-1.5 rounded-xl bg-card border border-line text-white text-[10.5px] font-bold shrink-0">0</button>
+        <button onclick="togglePanel()" class="tap px-2 py-1.5 rounded-xl bg-card border border-line text-amber-300 text-[11px] font-bold shrink-0">⏱</button>
+        <button onclick="handoff()" class="tap px-2.5 py-1.5 rounded-xl bg-sky-500/20 border border-sky-400/45 text-sky-300 text-[10.5px] font-extrabold shrink-0">Devret</button>
+      </div>
+      <div class="px-3.5 pb-1.5 flex items-center justify-between gap-2">
+        <div class="min-w-0">
+          <span id="fs-title" class="text-xs font-extrabold text-white"></span>
+          <span id="fs-tag" class="ml-1 text-[9.5px] px-2 py-0.5 rounded-full bg-acc/15 text-acc border border-acc/30"></span>
+        </div>
+        <span id="fs-state" class="font-mono text-[10px] font-bold shrink-0"></span>
+      </div>
+      <div id="fs-panel" class="hidden px-3.5 pb-2.5 space-y-1.5">
+        <div class="flex items-center gap-1.5">
+          <input id="fs-limit-text" placeholder="Limit uyarısını yapıştır (örn: resets at 07:40)" class="flex-1 bg-card border border-amber-500/30 rounded-xl px-2.5 py-1.5 text-[11px] text-white outline-none">
+          <button onclick="fsParse()" class="tap px-2.5 py-1.5 rounded-xl bg-amber-500 text-black text-[10px] font-extrabold">Saati Al</button>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <input id="fs-url" placeholder="Giriş bağlantısını yapıştır (https://claude.ai/...)" class="flex-1 bg-card border border-line rounded-xl px-2.5 py-1.5 text-[11px] text-white outline-none">
+          <button onclick="fsGo()" class="tap px-2.5 py-1.5 rounded-xl bg-acc text-white text-[10px] font-extrabold">Git</button>
+          <button onclick="reloadFS()" class="tap px-2.5 py-1.5 rounded-xl bg-card border border-line text-white text-[10px] font-extrabold">↻</button>
+        </div>
+      </div>
+    </div>
+    <div id="fs-preview" class="hidden flex-1 items-center justify-center text-mute text-xs p-6 text-center">Tarayıcı önizlemesi: oturum görünümü yalnızca APK içinde çalışır.</div>
+  </div>
+
+  <!-- PUSH BANNER -->
+  <div id="banner" onclick="bannerTap()" class="hidden absolute top-14 inset-x-3 z-50 rounded-2xl bg-[#22221E] border border-emerald-400/60 p-3 shadow-2xl">
+    <div class="text-[9.5px] font-mono font-bold uppercase text-emerald-400">Oturum Yenilendi</div>
+    <div id="banner-title" class="text-xs font-extrabold text-white mt-0.5"></div>
+    <div class="text-[10.5px] text-mute">Açmak için dokun.</div>
+  </div>
+
+  <!-- MODALLAR -->
+  <div id="parser-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-3.5">
+    <div class="w-full max-w-[400px] rounded-3xl bg-[#1A1A17] border border-amber-500/40 p-4 space-y-3">
+      <div class="flex justify-between"><h3 class="text-sm font-extrabold">Metinden Saat Algıla</h3><button onclick="closeModal('parser-modal')" class="text-mute px-2">✕</button></div>
+      <select id="parser-slot" class="w-full bg-bg border border-line rounded-xl px-3 py-2 text-xs text-white"></select>
+      <textarea id="parser-text" rows="3" placeholder="Limit uyarısı metnini yapıştır (07:40 / 7:40 AM)" class="w-full bg-bg border border-line rounded-2xl p-3 text-xs text-white outline-none"></textarea>
+      <button onclick="runParser()" class="tap w-full py-2.5 rounded-2xl bg-amber-500 text-black text-xs font-extrabold">Saati Ayrıştır &amp; Sayacı Kur</button>
+    </div>
+  </div>
+
+  <div id="timer-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-3.5">
+    <div class="w-full max-w-[400px] rounded-3xl bg-[#1A1A17] border border-line p-4 space-y-3">
+      <div class="flex justify-between"><h3 id="timer-title" class="text-sm font-extrabold"></h3><button onclick="closeModal('timer-modal')" class="text-mute px-2">✕</button></div>
+      <div class="flex gap-2">
+        <input id="timer-clock" type="time" value="07:40" class="flex-1 bg-card border border-line rounded-xl px-3 py-2 text-sm font-mono text-white">
+        <button onclick="timerSetClock()" class="tap px-4 rounded-xl bg-emerald-600 text-white text-xs font-bold">Kur</button>
+      </div>
+      <button onclick="timerSetSeconds(10)" class="tap w-full py-2 rounded-xl bg-acc/20 border border-acc/40 text-acc text-xs font-bold">10 saniyelik bildirim testi</button>
+      <button onclick="timerClear()" class="w-full py-2 rounded-xl bg-emerald-500/10 text-emerald-400 text-[11px] font-bold">Limiti Kaldır</button>
+    </div>
+  </div>
+
+  <div id="tag-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-3.5">
+    <div class="w-full max-w-[400px] rounded-3xl bg-[#1A1A17] border border-line p-4 space-y-2.5">
+      <div class="flex justify-between"><h3 id="tag-title" class="text-sm font-extrabold">Düzenle</h3><button onclick="closeModal('tag-modal')" class="text-mute px-2">✕</button></div>
+      <input id="tag-name" maxlength="20" placeholder="Hesap adı" class="w-full bg-bg border border-line rounded-xl px-3 py-2 text-xs text-white outline-none">
+      <input id="tag-tag" maxlength="24" placeholder="Proje etiketi" class="w-full bg-bg border border-line rounded-xl px-3 py-2 text-xs text-white outline-none">
+      <input id="tag-icon" placeholder="Simge (emoji, isteğe bağlı)" class="w-full bg-bg border border-line rounded-xl px-3 py-2 text-xs text-white outline-none">
+      <div id="tag-colors" class="flex gap-2 py-1"></div>
+      <button onclick="saveTag()" class="tap w-full py-2 rounded-xl bg-acc text-white text-xs font-bold">Kaydet</button>
+    </div>
+  </div>
+
+  <div id="history-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-3.5">
+    <div class="w-full max-w-[400px] max-h-[75vh] overflow-y-auto rounded-3xl bg-[#1A1A17] border border-amber-500/40 p-4 space-y-2">
+      <div class="flex justify-between"><h3 class="text-sm font-extrabold">Özet &amp; Geçmiş</h3><button onclick="closeModal('history-modal')" class="text-mute px-2">✕</button></div>
+      <div id="summary" class="space-y-1.5 text-[10.5px] pb-2 border-b border-line"></div>
+      <div id="history-list" class="space-y-1.5 text-[10.5px]"></div>
+    </div>
+  </div>
+
+  <div id="notes-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-3.5">
+    <div class="w-full max-w-[400px] max-h-[80vh] overflow-y-auto nos rounded-3xl bg-[#1A1A17] border border-acc/40 p-4 space-y-2">
+      <div class="flex justify-between items-center gap-2">
+        <h3 class="text-sm font-extrabold">Bildirimler</h3>
+        <div class="flex gap-1.5">
+          <button onclick="notesReadAll()" class="tap px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-emerald-300">Okundu</button>
+          <button onclick="notesClear()" class="tap px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-rose-300">Temizle</button>
+          <button onclick="closeModal('notes-modal')" class="text-mute px-2">✕</button>
+        </div>
+      </div>
+      <div id="notes-list" class="space-y-1.5 text-[10.5px]"></div>
+    </div>
+  </div>
+
+  <div id="settings-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-3.5">
+    <div class="w-full max-w-[400px] max-h-[85vh] overflow-y-auto nos rounded-3xl bg-[#1A1A17] border border-sky-500/40 p-4 space-y-3">
+      <div class="flex justify-between"><h3 class="text-sm font-extrabold">Ayarlar</h3><button onclick="closeModal('settings-modal')" class="text-mute px-2">✕</button></div>
+      <label class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-bg border border-line">
+        <span><b class="text-xs">Uygulama kilidi</b><br><span class="text-[10px] text-mute">PIN / desen / parmak izi ister (30 sn arka plandan sonra)</span></span>
+        <input id="set-lock" type="checkbox" class="w-5 h-5 accent-orange-500" onchange="setCfg('lock',this.checked)">
+      </label>
+      <label class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-bg border border-line">
+        <span><b class="text-xs">Ekran görüntüsünü engelle</b><br><span class="text-[10px] text-mute">Son uygulamalar ekranında içerik gizlenir (yeniden açınca geçerli)</span></span>
+        <input id="set-secure" type="checkbox" class="w-5 h-5 accent-orange-500" onchange="setCfg('secure',this.checked)">
+      </label>
+      <div class="flex items-center justify-between p-2.5 rounded-xl bg-bg border border-line">
+        <span class="text-xs font-bold">Hesap sayısı</span>
+        <div class="flex items-center gap-3">
+          <button onclick="setCount(-1)" class="tap w-8 h-8 rounded-xl bg-card border border-line font-bold">−</button>
+          <b id="set-count" class="font-mono">6</b>
+          <button onclick="setCount(1)" class="tap w-8 h-8 rounded-xl bg-card border border-line font-bold">+</button>
+        </div>
+      </div>
+      <label class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-bg border border-line">
+        <span><b class="text-xs">İndirme yöntemi</b><br><span class="text-[10px] text-mute">Harici: FDM, IDM, ADM gibi uygulamaya gönderir (blob dosyalar her zaman telefona iner)</span></span>
+        <select id="set-dl" onchange="if(NA)NA.setDownloadMode(this.value)" class="bg-card border border-line rounded-lg px-2 py-1 text-[11px] text-white">
+          <option value="ask">Her seferinde sor</option><option value="builtin">Telefona indir</option><option value="external">Harici uygulama</option>
+        </select>
+      </label>
+      <button id="set-exact" onclick="exactPerm()" class="tap w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[11px] font-bold text-amber-300"></button>
+      <div class="p-2.5 rounded-xl bg-bg border border-line space-y-2">
+        <b class="text-xs">Alarm sağlığı</b>
+        <label class="flex items-center justify-between gap-3"><span class="text-[10.5px]">Güvenilir alarm modu <span class="text-mute">(durum çubuğunda alarm simgesi görünür, pil tasarrufundan etkilenmez)</span></span><input id="set-alarmclock" type="checkbox" class="w-5 h-5 accent-orange-500" onchange="setCfg('alarmclock',this.checked)"></label>
+        <button id="set-battery" onclick="NA&&NA.requestBattery()" class="tap w-full py-2 rounded-xl bg-white/5 border border-white/10 text-[11px] font-bold text-amber-300"></button>
+        <div id="set-health" class="text-[10px] text-mute"></div>
+      </div>
+      <label class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-bg border border-line">
+        <span><b class="text-xs">Yanıt bitti bildirimi</b><br><span class="text-[10px] text-mute">Uzun bir yanıt tamamlanınca (o hesapta değilsen) haber verir</span></span>
+        <input id="set-gen" type="checkbox" class="w-5 h-5 accent-orange-500" onchange="setCfg('gennotify',this.checked)">
+      </label>
+      <div class="p-2.5 rounded-xl bg-bg border border-line space-y-2">
+        <b class="text-xs">Dış uygulama bağlantısı (Tasker / MacroDroid)</b>
+        <div class="flex gap-1.5">
+          <input id="set-token" readonly class="flex-1 min-w-0 bg-card border border-line rounded-xl px-2.5 py-1.5 text-[11px] font-mono text-white outline-none">
+          <button onclick="copyToken()" class="tap px-2.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold">Kopyala</button>
+          <button onclick="newToken()" class="tap px-2.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-rose-300">Yenile</button>
+        </div>
+        <pre id="set-auto-doc" class="text-[9.5px] text-mute whitespace-pre-wrap"></pre>
+      </div>
+      <div class="p-2.5 rounded-xl bg-bg border border-line space-y-2">
+        <b class="text-xs">Güncelleme</b>
+        <input id="set-repo" placeholder="GitHub deposu (kullanıcı/depo)" class="w-full bg-card border border-line rounded-xl px-2.5 py-1.5 text-[11px] text-white outline-none">
+        <input id="set-ghtoken" type="password" placeholder="Özel depo için erişim anahtarı (isteğe bağlı)" class="w-full bg-card border border-line rounded-xl px-2.5 py-1.5 text-[11px] text-white outline-none">
+        <div class="flex gap-1.5">
+          <button onclick="saveUpdateCfg()" class="tap flex-1 py-2 rounded-xl bg-white/5 border border-white/10 text-[11px] font-bold">Kaydet</button>
+          <button onclick="checkUpdate(true)" class="tap flex-1 py-2 rounded-xl bg-acc text-white text-[11px] font-bold">Şimdi denetle</button>
+        </div>
+        <div id="set-update" class="text-[10.5px] text-mute"></div>
+      </div>
+      <div class="p-2.5 rounded-xl bg-bg border border-line space-y-2">
+        <b class="text-xs">Tanılama</b>
+        <pre id="set-diag" class="text-[10px] font-mono text-mute whitespace-pre-wrap"></pre>
+        <button onclick="copyDiag()" class="tap w-full py-2 rounded-xl bg-white/5 border border-white/10 text-[11px] font-bold">Tanılama bilgisini kopyala</button>
+      </div>
+      <div class="p-2.5 rounded-xl bg-bg border border-line space-y-2">
+        <b class="text-xs">Yedek</b>
+        <button onclick="backupCopy()" class="tap w-full py-2 rounded-xl bg-white/5 border border-white/10 text-[11px] font-bold text-white">Yedeği panoya kopyala</button>
+        <textarea id="set-restore" rows="2" placeholder="Yedek metnini buraya yapıştır" class="w-full bg-card border border-line rounded-xl p-2 text-[11px] text-white outline-none"></textarea>
+        <button onclick="restoreBackup()" class="tap w-full py-2 rounded-xl bg-acc text-white text-[11px] font-bold">Yedekten yükle</button>
+        <p class="text-[10px] text-mute">Yedek yalnızca hesap adlarını, etiketleri ve sayaçları içerir; giriş bilgileri dahil değildir.</p>
+      </div>
+      <div class="text-[10px] text-mute leading-relaxed">
+        <b class="text-white">İpuçları</b><br>
+        • Google ile giriş WebView'de engellenebilir; e-posta ile giriş yap.<br>
+        • Giriş bağlantısını kopyala, ⏱ panelindeki alana yapıştırıp "Git"e bas.<br>
+        • Harici indirme uygulamasında giriş çerezi olmaz; oturum gerektiren dosyalar orada inmeyebilir, "Telefona indir" seç.<br>
+        • Limit mesajını yapıştır; saat otomatik algılanır ve bildirim kurulur.
+      </div>
+    </div>
+  </div>
+
+  <div id="menu-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-3.5">
+    <div class="w-full max-w-[400px] rounded-3xl bg-[#1A1A17] border border-sky-500/40 p-4 space-y-2">
+      <div class="flex justify-between"><h3 class="text-sm font-extrabold">Menü</h3><button onclick="closeModal('menu-modal')" class="text-mute px-2">✕</button></div>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="closeModal('menu-modal');openModal('history-modal');renderHistory()" class="tap p-3 rounded-2xl bg-card border border-line text-xs font-bold text-amber-300">📊 Özet &amp; Geçmiş</button>
+        <button onclick="openFiles()" class="tap p-3 rounded-2xl bg-card border border-line text-xs font-bold text-emerald-300">📁 İndirilenler</button>
+        <button onclick="openTerm()" class="tap p-3 rounded-2xl bg-card border border-line text-xs font-bold text-sky-300">⌨ Terminal</button>
+        <button onclick="openSettings()" class="tap p-3 rounded-2xl bg-card border border-line text-xs font-bold text-white">⚙ Ayarlar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="fsmenu-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-3.5">
+    <div class="w-full max-w-[400px] rounded-3xl bg-[#1A1A17] border border-line p-4 space-y-2">
+      <div class="flex justify-between"><h3 class="text-sm font-extrabold">Bu hesap</h3><button onclick="closeModal('fsmenu-modal')" class="text-mute px-2">✕</button></div>
+      <button onclick="fsExport()" class="tap w-full p-3 rounded-2xl bg-card border border-line text-xs font-bold text-white text-left">⤓ Sohbeti Markdown (.md) olarak kaydet</button>
+      <button onclick="fsFloat()" class="tap w-full p-3 rounded-2xl bg-card border border-line text-xs font-bold text-white text-left">⧉ Yüzen pencerede aç (başka uygulamanın üstünde)</button>
+      <button onclick="fsPin()" class="tap w-full p-3 rounded-2xl bg-card border border-line text-xs font-bold text-white text-left">📌 Ana ekrana kısayol ekle</button>
+      <button onclick="closeModal('fsmenu-modal');reloadFS()" class="tap w-full p-3 rounded-2xl bg-card border border-line text-xs font-bold text-white text-left">↻ Sayfayı yenile</button>
+    </div>
+  </div>
+
+  <div id="share-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-3.5">
+    <div class="w-full max-w-[400px] max-h-[80vh] overflow-y-auto nos rounded-3xl bg-[#1A1A17] border border-acc/40 p-4 space-y-2">
+      <div class="flex justify-between"><h3 class="text-sm font-extrabold">Hangi hesaba gönderilsin?</h3><button onclick="closeModal('share-modal')" class="text-mute px-2">✕</button></div>
+      <div id="share-prev" class="text-[10.5px] text-mute p-2 rounded-xl bg-bg border border-line whitespace-pre-wrap break-words max-h-24 overflow-y-auto"></div>
+      <div id="share-list" class="space-y-1.5"></div>
+    </div>
+  </div>
+
+  <div id="files-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-3.5">
+    <div class="w-full max-w-[400px] max-h-[80vh] overflow-y-auto nos rounded-3xl bg-[#1A1A17] border border-emerald-500/40 p-4 space-y-2">
+      <div class="flex justify-between"><h3 class="text-sm font-extrabold">İndirilenler</h3><button onclick="closeModal('files-modal')" class="text-mute px-2">✕</button></div>
+      <div id="files-list" class="space-y-1.5 text-[10.5px]"></div>
+    </div>
+  </div>
+
+  <div id="term" class="hidden fixed inset-0 z-40 flex-col bg-bg">
+    <div class="px-3 py-2 border-b border-line flex items-center gap-2 shrink-0 bg-[#121210]">
+      <button onclick="closeTerm()" class="tap px-2.5 py-1.5 rounded-xl bg-card border border-line text-white text-[11px] font-bold">‹ Geri</button>
+      <div class="flex-1 min-w-0"><div class="text-xs font-extrabold">Terminal • Termux</div><div id="term-acct" class="text-[10px] text-mute font-mono">hesap: yok</div></div>
+      <button onclick="NA&&NA.termuxOpen()" class="tap px-2.5 py-1.5 rounded-xl bg-card border border-line text-sky-300 text-[10.5px] font-bold">Termux'u aç</button>
+    </div>
+    <div id="term-setup" class="hidden px-3 py-2 text-[10.5px] bg-amber-500/10 border-b border-amber-500/30 text-amber-200 space-y-1.5"></div>
+    <div id="term-out" class="flex-1 overflow-y-auto nos p-3 font-mono text-[11px] leading-relaxed space-y-1 select-text"></div>
+    <div id="term-quick" class="px-3 pt-1 flex gap-1.5 overflow-x-auto nos shrink-0"></div>
+    <div class="p-3 flex items-center gap-2 shrink-0 border-t border-line">
+      <button onclick="termHist(-1)" class="tap px-2.5 py-2 rounded-xl bg-card border border-line text-mute text-xs">↑</button>
+      <input id="term-in" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="komut (örn: ls, hesap 2)" class="flex-1 bg-card border border-line rounded-xl px-3 py-2 text-xs text-white font-mono outline-none" onkeydown="if(event.key==='Enter')termSend()">
+      <button onclick="termSend()" class="tap px-3 py-2 rounded-xl bg-acc text-white text-xs font-bold">Çalıştır</button>
+    </div>
+  </div>
+
+  <div id="toast" class="pointer-events-none opacity-0 transition-opacity absolute bottom-16 inset-x-4 z-[60] flex justify-center">
+    <div id="toast-t" class="px-3.5 py-2 rounded-xl bg-[#262622] border border-white/15 text-white text-[11px] text-center shadow-2xl"></div>
+  </div>
+</div>
+
+<script>
+const NA = window.AndroidBridge || null;
+const KEY = 'csb6.v1';
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clockOf = ms => { const d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+const hms = s => { s = Math.max(0, Math.floor(s)); return pad(Math.floor(s/3600)) + ':' + pad(Math.floor(s%3600/60)) + ':' + pad(s%60); };
+
+// ---- Durum (kalıcı) ----
+const COLORS = ['#D97757','#34D399','#38BDF8','#A78BFA','#F472B6','#FBBF24','#2DD4BF','#FB7185'];
+const mk = i => ({ id: i, code: 'S' + pad(i), name: 'Hesap ' + i, tag: 'Genel', color: COLORS[(i - 1) % 8], icon: '', resetAt: 0, lastUsed: 0, unlockedFx: false });
+function defaults() {
+  return { slots: [1,2,3,4,5,6].map(mk), history: [], recent: [], days: {}, filter: '' };
+}
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)) || defaults(); } catch (e) { S = defaults(); }
+if (!S.slots || S.slots.length < 1) S = defaults();
+S.slots.forEach(x => { if (!x.color) x.color = COLORS[(x.id - 1) % 8]; });
+S.days = S.days || {}; S.filter = S.filter || '';
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} publish(); };
+function publish() { if (NA) { try { NA.publishState(JSON.stringify(S.slots.map(x => ({ id: x.id, code: x.code, name: x.name, resetAt: x.resetAt, color: x.color, icon: x.icon || '' })))); } catch (e) {} } }
+const slot = id => S.slots.find(s => s.id === id);
+const isLimited = s => s.resetAt > Date.now();
+let notes = [];
+let fsId = null, tModal = null, tagModal = null, bannerSlot = null;
+
+// ---- Metinden saat ayrıştırma ----
+function parseTime(t) {
+  let m = t.match(/\b(\d{1,2}):([0-5]\d)\s*(AM|PM)\b/i);
+  if (m) {
+    let h = +m[1]; const p = m[3].toUpperCase();
+    if (h < 1 || h > 12) return null;
+    if (p === 'PM' && h < 12) h += 12;
+    if (p === 'AM' && h === 12) h = 0;
+    return pad(h) + ':' + m[2];
+  }
+  m = t.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+  return m ? pad(+m[1]) + ':' + m[2] : null;
+}
+function nextEpoch(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date(); d.setHours(h, m, 0, 0);
+  if (d <= new Date()) d.setDate(d.getDate() + 1);
+  return d.getTime();
+}
+
+// ---- Günlük mesaj sayacı ----
+const today = () => new Date().toDateString();
+const cnt = s => (s.cntDay === today() ? (s.cnt || 0) : 0);
+function bump() {
+  const s = slot(fsId); if (!s) return;
+  if (s.cntDay !== today()) { s.cntDay = today(); s.cnt = 0; }
+  s.cnt++;
+  const d = today(); S.days[d] = S.days[d] || {}; S.days[d][s.id] = (S.days[d][s.id] || 0) + 1;
+  const ks = Object.keys(S.days); if (ks.length > 35) delete S.days[ks[0]];
+  save(); renderFS(); renderGrid();
+}
+
+// ---- Limit ----
+function setLimit(id, epoch, note) {
+  const s = slot(id); s.resetAt = epoch;
+  S.history.unshift({ code: s.code, name: s.name, reset: clockOf(epoch), at: clockOf(Date.now()), note });
+  S.history = S.history.slice(0, 30);
+  if (NA) NA.schedule(id, epoch, s.code + ' • ' + s.name + ' aktif!', clockOf(epoch) + ' yenileme saati geldi.');
+  save(); renderAll(); if (fsId === id) renderFS();
+}
+function clearLimit(id) {
+  const s = slot(id); s.resetAt = 0; s.unlockedFx = true;
+  if (NA) NA.cancel(id);
+  save(); renderAll(); if (fsId === id) renderFS();
+  setTimeout(() => { s.unlockedFx = false; renderGrid(); }, 2000);
+}
+
+// ---- Yönlendirici ----
+function visibleSlots() { const v = S.filter ? S.slots.filter(x => x.tag === S.filter) : S.slots; return v.length ? v : S.slots; }
+function pickBest(exclude) {
+  const pool = visibleSlots();
+  const free = pool.filter(s => !isLimited(s) && s.id !== exclude).sort((a, b) => a.lastUsed - b.lastUsed);
+  if (free.length) return { mode: 'free', s: free[0] };
+  const lim = pool.filter(isLimited).sort((a, b) => a.resetAt - b.resetAt);
+  return { mode: 'wait', s: lim[0] || pool[0] };
+}
+function setFilter(t) { S.filter = t; save(); renderAll(); }
+function renderChips() {
+  const tags = [...new Set(S.slots.map(x => x.tag))];
+  if (S.filter && !tags.includes(S.filter)) S.filter = '';
+  $('chips').innerHTML = tags.length < 2 ? '' : ['', ...tags].map(t =>
+    `<button onclick="setFilter(${JSON.stringify(t).replace(/"/g, '&quot;')})" class="tap shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold border ${S.filter === t ? 'bg-acc text-white border-acc' : 'bg-card text-mute border-line'}">${t ? esc(t) : 'Tümü'}</button>`).join('');
+}
+function renderRouter() {
+  const p = pickBest(), main = $('router-main'), sub = $('router-sub');
+  if (p.mode === 'free') {
+    main.textContent = p.s.code + ' • ' + p.s.name;
+    sub.className = 'text-[10px] text-emerald-300 truncate';
+    sub.textContent = 'En az kullanılan müsait hesap • ' + p.s.tag;
+  } else {
+    main.textContent = 'En erken: ' + p.s.code + ' • ' + clockOf(p.s.resetAt);
+    sub.className = 'text-[10px] text-amber-300 truncate';
+    sub.textContent = 'Tümü limitli • Kalan ' + hms((p.s.resetAt - Date.now()) / 1000);
+  }
+}
+function launchBest() { openFS(pickBest().s.id); }
+
+// ---- Render ----
+function renderGrid() {
+  $('grid').innerHTML = visibleSlots().map(s => {
+    const lim = isLimited(s);
+    const badge = lim
+      ? '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/35">Limitli</span>'
+      : '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/35">Müsait</span>';
+    return `<div onclick="openFS(${s.id})" style="border-top:3px solid ${s.color}" class="tap rounded-3xl p-2.5 border ${lim ? 'border-rose-500/40' : 'border-line'} bg-card ${s.unlockedFx ? 'unlocked' : ''}">
+      <div class="flex items-center justify-between mb-1"><span class="font-mono text-[10px] font-extrabold">${s.code}</span>${unread(s.id) ? `<span class="ml-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-acc text-white">🔔 ${unread(s.id)}</span>` : ''}${badge}</div>
+      <div class="text-xs font-bold truncate">${s.icon ? s.icon + ' ' : ''}${esc(s.name)}</div>
+      <button onclick="openTag(event,${s.id})" class="mt-1 px-2 py-0.5 rounded-full bg-acc/15 border border-acc/30 text-[9.5px] font-semibold text-acc max-w-full truncate">${esc(s.tag)} ✎</button>
+      ${lim ? `<div class="mt-2 p-1.5 rounded-xl bg-rose-500/10 border border-rose-500/25 font-mono text-[9px]">
+          <div class="flex justify-between"><span class="text-rose-200/80">Kalan</span><b id="cd-${s.id}" class="text-rose-300">${hms((s.resetAt - Date.now())/1000)}</b></div>
+          <div class="text-[9.5px] font-bold text-amber-300">${clockOf(s.resetAt)}'ta aktif</div></div>`
+        : `<div class="mt-2 py-1 px-2 rounded-xl bg-white/[0.03] text-[9px] text-mute font-mono">Hazır • bugün ${cnt(s)} mesaj</div>`}
+      <div class="mt-2 pt-1.5 border-t border-white/5 space-y-1">
+        <div class="flex gap-1">
+          <button onclick="openTimer(event,${s.id})" class="flex-1 py-1 rounded-lg bg-white/5 border border-white/10 text-[9px] font-bold text-amber-300">Sayaç</button>
+          <button onclick="startSlot(event,${s.id})" class="flex-1 py-1 rounded-lg bg-acc text-white text-[9px] font-extrabold">Başlat</button>
+        </div>
+        <button onclick="wipe(event,${s.id})" class="w-full py-1 rounded-lg bg-white/[0.03] text-[8.5px] font-semibold text-mute">Oturumu Sıfırla (çıkış)</button>
+      </div></div>`;
+  }).join('');
+  const free = S.slots.filter(s => !isLimited(s)).length;
+  $('stat').textContent = free + '/' + S.slots.length + ' müsait';
+}
+function renderDock() {
+  $('dock').innerHTML = S.recent.map(id => { const s = slot(id); if (!s) return '';
+    return `<button onclick="openFS(${id})" class="tap px-2 py-1 rounded-xl bg-card border border-line flex items-center gap-1.5 shrink-0">
+      <span class="w-1.5 h-1.5 rounded-full ${isLimited(s) ? 'bg-rose-400' : 'bg-emerald-400'}"></span>
+      <span class="font-mono text-[10px] font-bold">${s.code}</span>
+      <span class="text-[9.5px] text-mute max-w-[54px] truncate">${esc(s.name)}</span></button>`; }).join('');
+}
+function renderAll() { renderGrid(); renderRouter(); renderDock(); renderChips(); }
+
+// ---- Tam ekran (yerel WebView) ----
+function syncNative() {
+  if (!NA || !fsId) return;
+  NA.showSession(fsId, $('fs-head').getBoundingClientRect().bottom);
+}
+new ResizeObserver(() => { if (fsId) syncNative(); }).observe($('fs-head'));
+
+function openFS(id) {
+  fsId = id; const s = slot(id); s.lastUsed = Date.now();
+  if (NA) { NA.markRead(id); }
+  S.recent = [id, ...S.recent.filter(x => x !== id)].slice(0, 5); save();
+  $('fs').classList.remove('hidden'); $('fs').classList.add('flex');
+  $('fs-preview').classList.toggle('hidden', !!NA); $('fs-preview').classList.toggle('flex', !NA);
+  renderFS(); renderDock();
+  requestAnimationFrame(syncNative);
+}
+function closeFS() {
+  fsId = null; $('fs').classList.add('hidden'); $('fs').classList.remove('flex');
+  if (NA) NA.hideSession();
+  renderAll();
+}
+function renderFS() {
+  const s = slot(fsId); if (!s) return;
+  $('fs-title').textContent = (s.icon ? s.icon + ' ' : '') + s.code + ' • ' + s.name;
+  $('fs-tag').textContent = s.tag;
+  $('fs-count').textContent = '💬 ' + cnt(s) + ' +1';
+  const st = $('fs-state'), lim = isLimited(s);
+  st.className = 'font-mono text-[10px] font-bold shrink-0 ' + (lim ? 'text-rose-400' : 'text-emerald-400');
+  st.textContent = lim ? clockOf(s.resetAt) + "'ta aktif • " + hms((s.resetAt - Date.now())/1000) : 'Müsait';
+  $('fs-switch').innerHTML = S.slots.map(x => `<button onclick="openFS(${x.id})" class="px-2 py-1 rounded-xl font-mono text-[10px] font-bold flex items-center gap-1 shrink-0 border ${x.id === fsId ? 'bg-acc text-white border-acc' : 'bg-card text-mute border-line'}"><span class="w-1.5 h-1.5 rounded-full ${isLimited(x) ? 'bg-rose-400' : 'bg-emerald-400'}"></span>${x.code}</button>`).join('');
+  if (lim) $('fs-panel').classList.remove('hidden');
+}
+function togglePanel() { $('fs-panel').classList.toggle('hidden'); }
+function reloadFS() { if (NA && fsId) NA.reload(fsId); }
+function fsGo() {
+  const u = $('fs-url').value.trim();
+  if (!u.startsWith('https://')) return toast('https:// ile başlayan bağlantı yapıştır');
+  if (NA && fsId) NA.loadUrl(fsId, u); $('fs-url').value = ''; $('fs-panel').classList.add('hidden');
+}
+function fsParse() {
+  const t = parseTime($('fs-limit-text').value);
+  if (!t) return toast('Metinde saat bulunamadı (örn. 07:40)');
+  setLimit(fsId, nextEpoch(t), 'Metinden algılandı'); $('fs-limit-text').value = '';
+  toast(t + ' için sayaç kuruldu');
+}
+let pendingHandoff = null;
+function handoff() {
+  const cur = slot(fsId), p = pickBest(fsId);
+  if (p.mode !== 'free') return toast('Müsait başka hesap yok. En erken ' + p.s.code + ' (' + clockOf(p.s.resetAt) + ')');
+  if (NA) { pendingHandoff = { from: cur.id, to: p.s.id }; NA.grabContext(fsId); setTimeout(() => { if (pendingHandoff) window.onNativeContext(''); }, 2500); }
+  else doHandoff(cur, p.s, '');
+}
+window.onNativeContext = txt => { const h = pendingHandoff; pendingHandoff = null; if (h) doHandoff(slot(h.from), slot(h.to), txt); };
+function doHandoff(cur, to, ctx) {
+  to.tag = cur.tag; save();
+  const clean = (ctx || '').replace(/[ \t]+\n/g, '\n').trim().slice(-1200);
+  const text = `[Proje: ${cur.tag} | Kaynak: ${cur.code}] Başka bir hesaptan devam ediyorum. Önceki konuşmanın son bölümü:\n\"\"\"\n${clean}\n\"\"\"\nBuna göre kaldığımız yerden devam edelim.`;
+  if (NA) NA.copy(text); else if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+  openFS(to.id);
+  toast(cur.code + ' → ' + to.code + ' • devir metni kopyalandı, mesaj kutusuna yapıştır');
+}
+
+// ---- Sayfadan limit algılama (otomatik) ----
+function parseLimitEpoch(t) {
+  const c = parseTime(t); if (c) return nextEpoch(c);
+  const h = t.match(/(\d+)\s*(?:saat|hours?|hrs?)\b/i), m = t.match(/(\d+)\s*(?:dakika|dk|minutes?|mins?)\b/i);
+  const ms = (h ? +h[1] * 3600e3 : 0) + (m ? +m[1] * 60e3 : 0);
+  return ms ? Date.now() + ms : 0;
+}
+const base = {}, born = {};
+window.onNativeLimitText = (id, text) => {
+  const sl = slot(id); if (!sl) return;
+  text = (text || '').trim();
+  born[id] = born[id] || Date.now();
+  const prev = base[id]; base[id] = text;
+  // Sayfa yüklenirken (ilk 45 sn) görünen eski mesajları yok say: yalnızca yeni çıkanı yakala.
+  if (prev === undefined || Date.now() - born[id] < 45000) return;
+  if (!text || text === prev || isLimited(sl)) return;
+  const at = parseLimitEpoch(text); if (!at) return;
+  const key = text.slice(0, 120);
+  if (sl.lastKey === key && Date.now() - (sl.lastKeyAt || 0) < 20 * 3600e3) return;
+  sl.lastKey = key; sl.lastKeyAt = Date.now();
+  setLimit(id, at, 'Sayfadan algılandı');
+  const t = clockOf(at);
+  if (NA) NA.notifyNow(id, sl.code + ' • ' + sl.name + ' limitli', t + "'da tekrar aktif olacak");
+  toast(sl.code + ' limitli • ' + t + "'da tekrar aktif olacak");
+};
+
+// ---- Bildirim geçmişi ----
+function unread(id) { return notes.filter(n => n.slot === id && !n.read).length; }
+function loadNotes() {
+  try { notes = NA ? JSON.parse(NA.getNotes()) : []; } catch (e) { notes = []; }
+  const u = notes.filter(n => !n.read).length, b = $('bell-badge');
+  b.textContent = u > 99 ? '99+' : u; b.classList.toggle('hidden', !u);
+  renderGrid();
+  if (!$('notes-modal').classList.contains('hidden')) renderNotes();
+}
+window.onNativeNotes = loadNotes;
+const fmtAt = ms => { const d = new Date(ms); return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + ' ' + clockOf(ms); };
+function renderNotes() {
+  const list = [...notes].reverse();
+  $('notes-list').innerHTML = list.length ? list.map(n => `<button onclick="closeModal('notes-modal');${slot(n.slot) ? 'openFS(' + n.slot + ')' : ''}" class="w-full text-left p-2 rounded-xl bg-bg border ${n.read ? 'border-line' : 'border-acc/60'}"><div class="flex justify-between gap-2"><b class="truncate">${n.read ? '' : '● '}${esc(n.t)}</b><span class="font-mono text-mute shrink-0">${fmtAt(n.at)}</span></div><div class="text-mute">${esc(n.b)}</div></button>`).join('') : '<div class="text-center text-mute py-4">Bildirim yok.</div>';
+}
+function openNotes() { loadNotes(); renderNotes(); openModal('notes-modal'); }
+function notesReadAll() { if (NA) NA.markRead(0); }
+function notesClear() { if (NA) NA.clearNotes(); }
+
+// ---- Kart aksiyonları ----
+function startSlot(e, id) { e.stopPropagation(); openFS(id); }
+let wipeArm = 0;
+function wipe(e, id) {
+  e.stopPropagation();
+  if (wipeArm !== id) { wipeArm = id; setTimeout(() => { if (wipeArm === id) wipeArm = 0; }, 3000); return toast(slot(id).code + ' girişi silinecek. Onaylamak için tekrar dokun'); }
+  wipeArm = 0; if (NA) NA.clearSlot(id); toast(slot(id).code + ' sıfırlandı');
+}
+function openTimer(e, id) { e.stopPropagation(); tModal = id; $('timer-title').textContent = slot(id).code + ' • Sayaç'; openModal('timer-modal'); }
+function timerSetClock() { const v = $('timer-clock').value || '07:40'; setLimit(tModal, nextEpoch(v), 'Saat ' + v); closeModal('timer-modal'); toast(v + "'da aktif olacak"); }
+function timerSetSeconds(n) { setLimit(tModal, Date.now() + n * 1000, n + 'sn test'); closeModal('timer-modal'); toast(n + ' sn sayaç başladı'); }
+function timerClear() { clearLimit(tModal); closeModal('timer-modal'); toast('Limit kaldırıldı'); }
+function openTag(e, id) { e.stopPropagation(); tagModal = id; const s = slot(id); $('tag-title').textContent = s.code + ' • Düzenle'; $('tag-name').value = s.name; $('tag-tag').value = s.tag; tagColor = s.color; $('tag-icon').value = s.icon || ''; renderSwatches(); openModal('tag-modal'); }
+let tagColor = COLORS[0];
+function renderSwatches() { $('tag-colors').innerHTML = COLORS.map(c => `<button onclick="tagColor='${c}';renderSwatches()" class="w-6 h-6 rounded-full border-2" style="background:${c};border-color:${c === tagColor ? '#fff' : 'transparent'}"></button>`).join(''); }
+function saveTag() { const s = slot(tagModal); s.name = $('tag-name').value.trim() || s.name; s.tag = $('tag-tag').value.trim() || s.tag; s.color = tagColor; s.icon = [...$('tag-icon').value.trim()].slice(0, 2).join(''); save(); closeModal('tag-modal'); renderAll(); if (fsId) renderFS(); }
+function openParser() { $('parser-slot').innerHTML = S.slots.map(s => `<option value="${s.id}">${s.code} • ${esc(s.name)}</option>`).join(''); if (fsId) $('parser-slot').value = fsId; openModal('parser-modal'); }
+function runParser() {
+  const t = parseTime($('parser-text').value);
+  if (!t) return toast('Metinde saat bulunamadı');
+  setLimit(+$('parser-slot').value, nextEpoch(t), 'Metin ayrıştırma'); closeModal('parser-modal'); $('parser-text').value = ''; toast(t + ' için sayaç kuruldu');
+}
+function renderSummary() {
+  const tot = {};
+  for (let k = 0; k < 7; k++) { const d = S.days[new Date(Date.now() - k * 864e5).toDateString()] || {}; for (const id in d) tot[id] = (tot[id] || 0) + d[id]; }
+  const max = Math.max(1, ...S.slots.map(x => tot[x.id] || 0));
+  $('summary').innerHTML = '<div class="text-[10px] font-bold text-mute uppercase">Son 7 gün • mesaj sayacı</div>' + S.slots.map(x => {
+    const n = tot[x.id] || 0;
+    return `<div class="flex items-center gap-2"><span class="font-mono w-8 shrink-0">${x.code}</span><div class="flex-1 h-2 rounded-full bg-white/10 overflow-hidden"><div class="h-full rounded-full" style="width:${n / max * 100}%;background:${x.color}"></div></div><span class="font-mono w-7 text-right">${n}</span></div>`; }).join('');
+}
+function renderHistory() { renderSummary();
+  $('history-list').innerHTML = S.history.length ? S.history.map(h => `<div class="p-2 rounded-xl bg-bg border border-line flex justify-between gap-2"><div class="min-w-0"><div class="font-bold truncate">${h.code} • ${esc(h.name)}</div><div class="text-mute">${esc(h.note)} (${h.at})</div></div><span class="font-mono font-bold text-amber-300">${h.reset}</span></div>`).join('') : '<div class="text-center text-mute py-4">Kayıt yok.</div>';
+}
+const openModal = id => { $(id).classList.remove('hidden'); if (fsId && NA) NA.hideSession(); };
+const closeModal = id => { $(id).classList.add('hidden'); if (fsId && NA && !document.querySelector('[id$="-modal"]:not(.hidden)')) syncNative(); };
+let tt; function toast(m) { toastPos(); $('toast-t').textContent = m; $('toast').classList.remove('opacity-0'); clearTimeout(tt); tt = setTimeout(() => $('toast').classList.add('opacity-0'), 3000); }
+
+// ---- Banner & ses ----
+function chime() {
+  try { const c = new (window.AudioContext || window.webkitAudioContext)(), n = c.currentTime;
+    [587.33, 880].forEach((f, i) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = f;
+      g.gain.setValueAtTime(.001, n + i*.14); g.gain.exponentialRampToValueAtTime(.14, n + i*.14 + .03); g.gain.exponentialRampToValueAtTime(.0001, n + i*.14 + .45);
+      o.connect(g); g.connect(c.destination); o.start(n + i*.14); o.stop(n + i*.14 + .5); }); } catch (e) {}
+}
+let bt;
+function showBanner(s) {
+  bannerSlot = s.id; chime();
+  $('banner-title').textContent = s.code + ' • ' + s.name + ' aktif!';
+  const b = $('banner'); b.classList.remove('hidden', 'banner'); void b.offsetWidth; b.classList.add('banner');
+  clearTimeout(bt); bt = setTimeout(() => b.classList.add('hidden'), 6000);
+}
+function bannerTap() { $('banner').classList.add('hidden'); if (bannerSlot) openFS(bannerSlot); }
+window.onNativeOpenSlot = id => { closeTerm(); openFS(id); };
+
+// ---- Saniyelik döngü ----
+setInterval(() => {
+  $('clock').textContent = clockOf(Date.now());
+  let changed = false;
+  S.slots.forEach(s => {
+    if (s.resetAt) {
+      if (s.resetAt <= Date.now()) {
+        s.resetAt = 0; s.unlockedFx = true; changed = true; showBanner(s);
+        setTimeout(() => { s.unlockedFx = false; renderGrid(); }, 2000);
+      } else { const el = $('cd-' + s.id); if (el) el.textContent = hms((s.resetAt - Date.now()) / 1000); }
+    }
+  });
+  if (changed) { save(); renderAll(); if (fsId) renderFS(); }
+  else { renderRouter(); if (fsId && isLimited(slot(fsId))) renderFS(); }
+}, 1000);
+
+$('iso').textContent = NA ? (NA.supported() ? 'Profil izolasyonu: AKTİF (' + S.slots.length + ' ayrı çerez/depolama)' : 'UYARI: WebView profil desteklemiyor — oturumlar ortak') : 'Tarayıcı önizlemesi';
+// ---- Ayarlar ----
+let cfg = {};
+function openSettings() {
+  closeModal('menu-modal');
+  try { cfg = NA ? JSON.parse(NA.getSettings()) : {}; } catch (e) { cfg = {}; }
+  $('set-lock').checked = !!cfg.lock; $('set-secure').checked = !!cfg.secure;
+  $('set-exact').textContent = cfg.exact ? 'Tam zamanlı alarm: açık ✓' : 'Tam zamanlı alarm iznini ver (bildirim tam saatinde gelsin)';
+  $('set-count').textContent = S.slots.length;
+  $('set-dl').value = cfg.dl || 'ask';
+  $('set-alarmclock').checked = cfg.alarmclock !== false;
+  $('set-gen').checked = cfg.gennotify !== false;
+  $('set-battery').textContent = cfg.battery ? 'Pil kısıtlaması: kaldırıldı ✓' : 'Pil kısıtlamasını kaldır (alarmlar kesilmesin)';
+  $('set-health').textContent = 'Kurulu alarm: ' + (cfg.pending || 0) + ' • Geciken alarm: ' + (cfg.lateCount || 0) + (cfg.lastLate ? ' (son: ' + cfg.lastLate + ' dk)' : '');
+  $('set-token').value = cfg.token || '';
+  $('set-auto-doc').textContent = autoDoc(cfg.token || '');
+  $('set-repo').value = cfg.repo || '';
+  $('set-ghtoken').value = '';
+  $('set-ghtoken').placeholder = cfg.tokenSet ? 'Anahtar kayıtlı (değiştirmek için yaz)' : 'Özel depo için erişim anahtarı (isteğe bağlı)';
+  $('set-diag').textContent = diagText();
+  openModal('settings-modal');
+}
+function autoDoc(t) {
+  return 'Tasker > Eylem > Sistem > Intent Gönder\n' +
+    'Sayaç kur: Eylem com.sandbox6x.SET_TIMER, Hedef: Yayın alıcısı\n' +
+    'Paket com.sandbox6x, Sınıf com.sandbox6x.AutomationReceiver\n' +
+    'Ekstralar: token:' + t + '  slot:2  minutes:30   (veya time:07:40)\n' +
+    'Sayaç kaldır: com.sandbox6x.CLEAR_TIMER (token, slot)\n' +
+    'Hesap aç: com.sandbox6x.OPEN_SLOT, Hedef: Etkinlik, Sınıf com.sandbox6x.MainActivity (token, slot)\n' +
+    'Token olmadan gelen komutlar yok sayılır.';
+}
+function copyToken() { if (NA) NA.copy($('set-token').value); toast('Anahtar kopyalandı'); }
+function newToken() { if (!NA) return; const t = NA.newToken(); cfg.token = t; $('set-token').value = t; $('set-auto-doc').textContent = autoDoc(t); toast('Yeni anahtar üretildi, eskisi geçersiz'); }
+function diagText() {
+  const a = (navigator.userAgent.match(/Android [\d.]+/) || ['?'])[0];
+  return ['Sürüm: ' + (cfg.version || '?'), 'WebView: ' + (cfg.webview || '?'), 'Android: ' + a,
+    'Profil izolasyonu: ' + (cfg.profiles ? 'evet' : 'hayır'), 'Tam alarm: ' + (cfg.exact ? 'evet' : 'hayır'),
+    'Güvenilir alarm modu: ' + (cfg.alarmclock !== false ? 'açık' : 'kapalı'), 'Pil kısıtlaması kaldırıldı: ' + (cfg.battery ? 'evet' : 'hayır'),
+    'Yüzen pencere izni: ' + (cfg.overlay ? 'evet' : 'hayır'), 'Kurulu alarm: ' + (cfg.pending || 0), 'Geciken alarm: ' + (cfg.lateCount || 0)].join('\n');
+}
+function copyDiag() { if (NA) NA.copy(diagText()); toast('Tanılama bilgisi kopyalandı'); }
+
+// ---- Güncelleme ----
+let upd = null, updManual = false;
+function saveUpdateCfg() { if (!NA) return; NA.setUpdateConfig($('set-repo').value, $('set-ghtoken').value); $('set-ghtoken').value = ''; toast('Kaydedildi'); }
+function checkUpdate(manual) { if (!NA) return; updManual = !!manual; if (manual) { saveUpdateCfg(); $('set-update').textContent = 'Denetleniyor…'; } NA.checkUpdate(); }
+function autoUpdate() {
+  try { const c = JSON.parse(NA.getSettings()); if (c.repo && Date.now() - (S.lastUpd || 0) > 864e5) { updManual = false; NA.checkUpdate(); } } catch (e) {}
+}
+window.onNativeUpdate = str => {
+  let r; try { r = JSON.parse(str); } catch (e) { return; }
+  S.lastUpd = Date.now();
+  if (!r.ok) { if (updManual) $('set-update').textContent = 'Hata: ' + r.error; return; }
+  if (r.available) {
+    upd = r; $('update-bar').classList.remove('hidden'); $('update-text').textContent = 'Yeni sürüm: ' + r.tag;
+    $('set-update').textContent = 'Yeni sürüm var: ' + r.tag + (r.notes ? '\n' + r.notes : '');
+    if (NA && S.updNotified !== r.tag) { S.updNotified = r.tag; NA.notifyNow(0, 'Yeni sürüm hazır', r.tag + ' indirilebilir. Ayarlar > Güncelleme.'); }
+  } else { $('update-bar').classList.add('hidden'); $('set-update').textContent = 'Güncelsin (' + r.tag + ')'; if (updManual) toast('Güncelsin'); }
+  save();
+};
+function updInstall() { if (NA && upd) NA.downloadUpdate(upd.asset || '', upd.page || ''); }
+
+// ---- Otomasyon komutları (Tasker / MacroDroid) ----
+window.onNativeCommands = () => {
+  let a = []; try { a = NA ? JSON.parse(NA.takeCommands()) : []; } catch (e) {}
+  a.forEach(c => {
+    if (!slot(c.slot)) return;
+    if (c.cmd === 'timer') setLimit(c.slot, c.at, 'Otomasyon');
+    else if (c.cmd === 'clear') clearLimit(c.slot);
+  });
+};
+
+// ---- Sohbet menüsü işlemleri ----
+function fsExport() { closeModal('fsmenu-modal'); const s = slot(fsId); if (NA && s) NA.exportChat(fsId, s.code + ' ' + s.name); }
+function fsFloat() { closeModal('fsmenu-modal'); const s = slot(fsId); if (NA && s) NA.openFloating(fsId, s.code + ' • ' + s.name); }
+function fsPin() { closeModal('fsmenu-modal'); const s = slot(fsId); if (NA && s) NA.pinShortcut(fsId, s.name, s.color, s.icon || ''); }
+function toastPos() { const t = $('toast'); if (fsId) { t.style.top = '8px'; t.style.bottom = 'auto'; } else { t.style.top = ''; t.style.bottom = ''; } }
+
+// ---- Paylaşım (Paylaş menüsü / metin seçimi) ----
+window.onNativeShare = prev => {
+  closeTerm();
+  $('share-prev').textContent = prev;
+  $('share-list').innerHTML = S.slots.map(s => `<button onclick="shareTo(${s.id})" class="tap w-full text-left p-2.5 rounded-xl bg-bg border border-line text-xs font-bold flex justify-between"><span>${s.icon ? s.icon + ' ' : ''}${s.code} • ${esc(s.name)}</span><span class="${isLimited(s) ? 'text-rose-300' : 'text-emerald-300'}">${isLimited(s) ? '⏳ ' + clockOf(s.resetAt) : 'müsait'}</span></button>`).join('');
+  openModal('share-modal');
+};
+function shareTo(id) { closeModal('share-modal'); if (NA) NA.deliverShare(id); }
+
+// ---- İndirilenler ----
+function openFiles() {
+  closeModal('menu-modal');
+  let f = []; try { f = NA ? JSON.parse(NA.getFiles()) : []; } catch (e) {}
+  $('files-list').innerHTML = f.length ? f.map((x, i) => ({ x, i })).reverse().map(o => `<div class="p-2 rounded-xl bg-bg border border-line"><div class="font-bold truncate">${esc(o.x.name)}</div><div class="text-mute">${fmtAt(o.x.at)}${o.x.size ? ' • ' + Math.round(o.x.size / 1024) + ' KB' : ''}</div><div class="flex gap-1.5 mt-1.5"><button onclick="fileAct('openFile',${o.i})" class="tap px-2.5 py-1 rounded-lg bg-acc text-white text-[10px] font-bold">Aç</button><button onclick="fileAct('shareFile',${o.i})" class="tap px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold">Paylaş</button><button onclick="fileAct('deleteFile',${o.i});openFiles()" class="tap px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-rose-300">Sil</button></div></div>`).join('') : '<div class="text-center text-mute py-4">Henüz dosya yok.</div>';
+  openModal('files-modal');
+}
+function fileAct(a, i) { if (NA) NA[a](i); }
+
+// ---- Terminal (Termux köprüsü) ----
+const T = { acct: 0, hist: [], hi: 0, id: 0 };
+const TQUICK = ['ls', 'pwd', 'hesap', 'pkg update -y', 'pkg install -y nodejs git', 'node -v', 'temizle'];
+$('term-quick').innerHTML = TQUICK.map(c => `<button onclick="termRun('${c}')" class="tap shrink-0 px-2.5 py-1 rounded-full bg-card border border-line text-[10px] font-mono text-mute">${c}</button>`).join('');
+function openTerm() { closeModal('menu-modal'); $('term').classList.remove('hidden'); $('term').classList.add('flex'); termStatus(); updAcct(); }
+function closeTerm() { $('term').classList.add('hidden'); $('term').classList.remove('flex'); }
+function updAcct() { $('term-acct').textContent = 'hesap: ' + (T.acct ? T.acct + '  (~/.claude-hesaplar/' + T.acct + ')' : 'yok'); }
+function termStatus() {
+  const el = $('term-setup'); let st = {};
+  try { st = NA ? JSON.parse(NA.termuxStatus()) : {}; } catch (e) {}
+  el.classList.remove('hidden');
+  if (!NA) { el.textContent = 'Terminal yalnızca APK içinde çalışır.'; return; }
+  if (!st.installed) { el.innerHTML = '<b>Termux kurulu değil.</b> F-Droid üzerinden Termux\'u kur (Play Store sürümü eski ve bu köprüyle çalışmaz).'; return; }
+  if (!st.perm) { el.innerHTML = '<b>İzin gerekli.</b> <button onclick="NA.termuxRequestPerm()" class="underline font-bold">Termux komut izni ver</button>'; return; }
+  el.innerHTML = 'Termux\'ta <b>bir kez</b> şunu çalıştır, sonra Termux\'u tamamen kapatıp aç: <code class="text-white">mkdir -p ~/.termux &amp;&amp; echo "allow-external-apps=true" &gt;&gt; ~/.termux/termux.properties</code> <button onclick="copySetup()" class="underline font-bold">Komutu kopyala</button> • <button onclick="$(\'term-setup\').classList.add(\'hidden\')" class="underline">Gizle</button>';
+}
+function copySetup() { if (NA) NA.copy('mkdir -p ~/.termux && echo "allow-external-apps=true" >> ~/.termux/termux.properties'); toast('Komut kopyalandı, Termux\'ta yapıştır'); }
+window.onNativeTermuxPerm = ok => { toast(ok ? 'İzin verildi' : 'İzin verilmedi'); termStatus(); };
+function termPrint(t, cls, id) {
+  const d = document.createElement('div'); d.className = 'whitespace-pre-wrap break-words ' + (cls || 'text-white'); d.textContent = t;
+  if (id) d.dataset.id = id; $('term-out').appendChild(d); $('term-out').scrollTop = $('term-out').scrollHeight; return d;
+}
+function termSend() { const v = $('term-in').value; $('term-in').value = ''; termRun(v); }
+function termHist(d) { if (!T.hist.length) return; T.hi = Math.max(0, Math.min(T.hist.length, T.hi + d)); $('term-in').value = T.hist[T.hi] || ''; }
+function termRun(cmd) {
+  cmd = (cmd || '').trim(); if (!cmd) return;
+  termPrint('$ ' + cmd, 'text-sky-300'); T.hist.push(cmd); T.hi = T.hist.length;
+  const m = cmd.match(/^hesap(?:\s+(\d+))?$/i);
+  if (m) {
+    if (m[1] !== undefined) { T.acct = +m[1]; updAcct(); termPrint(T.acct ? 'Hesap ' + T.acct + ' seçildi. Sonraki komutlar CLAUDE_CONFIG_DIR=~/.claude-hesaplar/' + T.acct + ' ile çalışır.' : 'Hesap seçimi kapatıldı.', 'text-emerald-300'); }
+    else termPrint('Aktif hesap: ' + (T.acct || 'yok') + '  •  hesap 1, hesap 2 … yaz; hesap 0 kapatır. Geçişi sen yaparsın, otomatik geçiş yoktur.', 'text-mute');
+    return;
+  }
+  if (cmd === 'temizle' || cmd === 'clear') { $('term-out').innerHTML = ''; return; }
+  if (!NA) { termPrint('Yalnızca APK içinde çalışır.', 'text-rose-400'); return; }
+  const id = ++T.id;
+  const full = T.acct > 0 ? 'export CLAUDE_CONFIG_DIR="$HOME/.claude-hesaplar/' + T.acct + '"; mkdir -p "$CLAUDE_CONFIG_DIR"; ' + cmd : cmd;
+  termPrint('… çalışıyor', 'text-mute', id);
+  NA.termuxRun(id, full);
+}
+window.onNativeTermux = (id, out, err, code, msg) => {
+  const ph = document.querySelector('#term-out [data-id="' + id + '"]'); if (ph) ph.remove();
+  const clean = x => (x || '').replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').replace(/\r/g, '').replace(/\s+$/, '');
+  if (msg) termPrint('Hata: ' + msg, 'text-rose-400');
+  const o = clean(out), e = clean(err);
+  if (o) termPrint(o); if (e) termPrint(e, 'text-amber-300');
+  if (!o && !e && !msg) termPrint('(çıktı yok)', 'text-mute');
+  termPrint('çıkış kodu: ' + code, code === 0 ? 'text-emerald-400' : 'text-rose-400');
+};
+
+// ---- Geri tuşu: açık pencereleri kapat ----
+window.onNativeBack = () => {
+  const open = [...document.querySelectorAll('[id$="-modal"]')].filter(m => !m.classList.contains('hidden'));
+  if (open.length) { closeModal(open[open.length - 1].id); return true; }
+  if (!$('term').classList.contains('hidden')) { closeTerm(); return true; }
+  return false;
+};
+function setCount(d) {
+  const n = S.slots.length + d;
+  if (n < 3 || n > 12) return;
+  if (d > 0) S.slots.push(mk(n));
+  else { const r = S.slots.pop(); if (NA) NA.cancel(r.id); S.recent = S.recent.filter(x => x !== r.id); if (fsId === r.id) closeFS(); toast(r.code + ' listeden kaldırıldı (giriş verisi telefonda kalır)'); }
+  save(); renderAll(); $('set-count').textContent = S.slots.length;
+}
+function setCfg(k, v) {
+  if (!NA) return;
+  NA.setSetting(k, v);
+  if (k === 'lock' && v && !cfg.deviceSecure) toast('Önce telefonda ekran kilidi (PIN/desen/parmak izi) ayarla');
+}
+function exactPerm() { if (NA) NA.openExactAlarmSettings(); }
+function backupCopy() {
+  const t = JSON.stringify(S);
+  if (NA) NA.copy(t); else if (navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {});
+  toast('Yedek panoya kopyalandı');
+}
+function restoreBackup() {
+  try {
+    const o = JSON.parse($('set-restore').value);
+    if (!o.slots || o.slots.length < 3 || o.slots.length > 12) throw new Error('bad');
+    o.slots.forEach(x => { if (!x.color) x.color = COLORS[(x.id - 1) % 8]; }); o.days = o.days || {}; o.filter = o.filter || '';
+    o.history = o.history || []; o.recent = o.recent || [];
+    S = o; save(); renderAll(); rescheduleAll();
+    $('set-restore').value = ''; closeModal('settings-modal'); toast('Yedek yüklendi');
+  } catch (e) { toast('Geçersiz yedek'); }
+}
+function rescheduleAll() {
+  if (!NA) return;
+  S.slots.forEach(s => {
+    if (isLimited(s)) NA.schedule(s.id, s.resetAt, s.code + ' • ' + s.name + ' aktif!', clockOf(s.resetAt) + ' yenileme saati geldi.');
+    else NA.cancel(s.id);
+  });
+}
+loadNotes();
+rescheduleAll();
+renderAll();
+window.onNativeCommands();
+setTimeout(autoUpdate, 4000);
+</script>
+</body>
+</html>
